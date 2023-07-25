@@ -15,6 +15,7 @@ app.use(session({
   }));
 
 const userData = [];
+const todosData = {};
 
 const checkForLogin = (req, res, next) => {
     if (req.session.userId) {
@@ -22,11 +23,40 @@ const checkForLogin = (req, res, next) => {
       }
       next();
     };
+const checkAuth = (req, res, next) => {
+    if (!req.session.userId) {
+        return res.status(401).json('Unauthorized');
+    }
+    next();
+    };  
+
+    //post user todos
+app.post('/api/todos', checkAuth, (req, res) => {
+    console.log(req.body)
+    const { todo } = req.body;
+    const userId = req.session.userId;
+
+    if (!todosData[userId]) {
+        todosData[userId] = [];
+      }
+    
+    todosData[userId].push(todo);
+    const response = {
+        id: userId,
+        todos: todosData[userId],
+      };
+
+    res.json(response);
+});    
+
+//get all todos
+app.get('/api/todos/list', (req, res) => {
+    res.json(todosData);
+});
 
 app.post('/api/user/register', checkForLogin, (req, res) => {
     
   const { username, password } = req.body;
-  console.log(req.body)
 
   if (userData.some((user) => user.username === username)) {
     return res.status(400).json('Username already taken');
@@ -78,7 +108,6 @@ app.post('/api/user/login', checkForLogin, (req, res) => {
     });
 
 app.get('/api/user/list', (req, res) => {
-    console.log(userData.length)
     res.json(userData);
   });
 
