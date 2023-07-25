@@ -1,29 +1,42 @@
 const express = require('express');
 const bodyParser = require('body-parser');
 const bcrypt = require('bcryptjs'); 
+const session = require('express-session');
 const { v4: uuidv4 } = require('uuid');
 
 const app = express();
 const PORT = 3000;
 
 app.use(bodyParser.json());
+app.use(session({
+    secret: 'randomstringofletters',
+    resave: false,
+    saveUninitialized: true,
+  }));
 
 const userData = [];
 
-app.post('/api/user/register', (req, res) => {
+const checkForLogin = (req, res, next) => {
+    if (req.session.userId) {
+        return res.redirect('/');
+      }
+      next();
+    };
+
+app.post('/api/user/register', checkForLogin, (req, res) => {
     
   const { username, password } = req.body;
   console.log(req.body)
 
   if (userData.some((user) => user.username === username)) {
-    return res.status(400).json({ error: 'Username already taken' });
+    return res.status(400).json('Username already taken');
   }
   //unique ID for user
   const userId = uuidv4();
 
   bcrypt.hash(password, 10, (err, hashedPassword) => {
     if (err) {
-      return res.status(500).json({ error: 'Internal server error' });
+      return res.status(500).json('Internal server error');
     }
 
     userData.push({ id: userId, username, password: hashedPassword });
@@ -32,6 +45,37 @@ app.post('/api/user/register', (req, res) => {
     return res.status(200).json(createdUser); 
   });
 });
+
+app.post('/api/user/login', checkForLogin, (req, res) => {
+    const { username, password } = req.body;
+  
+    const user = userData.find((user) => user.username === username);
+  
+    if (!user) {
+      return res.status(401).json("No such user");
+    }
+  
+    bcrypt.compare(password, user.password, (err, result) => {
+      if (err) {
+        return res.status(500).json('server error');
+      }
+  
+      if (result) {
+        req.session.userId = user.id;
+        return res.status(200).json('Login successful');
+      } else {
+        return res.status(401).json('Invalid credentials');
+      }
+    });
+  });
+
+  app.get('/api/secret', (req, res) => {
+    if (req.session.userId){
+    res.status(200).json( 'You have access to the secret route!');
+    } else {
+    res.status(401).json('Unauthorized');
+        }
+    });
 
 app.get('/api/user/list', (req, res) => {
     console.log(userData.length)
