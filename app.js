@@ -13,7 +13,7 @@ const userData = [];
 app.post('/api/user/register', (req, res) => {
     
   const { username, password } = req.body;
-  console.log(username, password)
+  console.log(req.body)
 
   if (userData.some((user) => user.username === username)) {
     return res.status(400).json({ error: 'Username already taken' });
@@ -29,11 +29,12 @@ app.post('/api/user/register', (req, res) => {
     userData.push({ id: userId, username, password: hashedPassword });
 
     const createdUser = { id: userId, username, password:hashedPassword};
-    return res.status(201).json(createdUser); 
+    return res.status(200).json(createdUser); 
   });
 });
 
 app.get('/api/user/list', (req, res) => {
+    console.log(userData.length)
     res.json(userData);
   });
 
