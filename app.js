@@ -15,67 +15,72 @@ app.use(session({
   }));
 
 const userData = [];
-const todosData = {};
+const todosData = [];
+
 
 const checkForLogin = (req, res, next) => {
     if (req.session.userId) {
-        return res.redirect('/');
+        return res.redirect('/api/todos/list');
       }
       next();
     };
-const checkAuth = (req, res, next) => {
-    if (!req.session.userId) {
-        return res.status(401).json('Unauthorized');
-    }
-    next();
-    };  
+
 
     //post user todos
-app.post('/api/todos', checkAuth, (req, res) => {
-    console.log(req.body)
-    const { todo } = req.body;
-    const userId = req.session.userId;
-
-    if (!todosData[userId]) {
-        todosData[userId] = [];
-      }
-    
-    todosData[userId].push(todo);
-    const response = {
-        id: userId,
-        todos: todosData[userId],
-      };
-
-    res.json(response);
-});    
+    app.post('/api/todos', (req, res) => {
+        const { todo } = req.body;
+        const userId = req.session.userId;
+      
+        if (!userId) {
+          return res.status(401).json("Unauthorized");
+        }
+      
+        const userTodos = todosData.find((data) => data.id === userId);
+      
+        if (!userTodos) {
+          const newUserTodos = { id: userId, todos: [todo] };
+          todosData.push(newUserTodos);
+          return res.status(200).json(newUserTodos);
+        }
+      
+        userTodos.todos.push(todo);
+        return res.status(200).json(userTodos);
+      });
 
 //get all todos
 app.get('/api/todos/list', (req, res) => {
-    res.json(todosData);
+    res.status(200).json(todosData);
 });
 
 app.post('/api/user/register', checkForLogin, (req, res) => {
-    
-  const { username, password } = req.body;
-
-  if (userData.some((user) => user.username === username)) {
-    return res.status(400).json('Username already taken');
-  }
-  //unique ID for user
-  const userId = uuidv4();
-
-  bcrypt.hash(password, 10, (err, hashedPassword) => {
-    if (err) {
-      return res.status(500).json('Internal server error');
+    const { username, password } = req.body;
+  
+    if (userData.some((user) => user.username === username)) {
+      return res.status(400).json('Username already taken');
     }
-
-    userData.push({ id: userId, username, password: hashedPassword });
-
-    const createdUser = { id: userId, username, password:hashedPassword};
-    return res.status(200).json(createdUser); 
+  
+    const userId = uuidv4();
+  
+    bcrypt.hash(password, 10, (err, hashedPassword) => {
+      if (err) {
+        return res.status(500).json('Internal server error');
+      }
+  
+      const newUser = {
+        id: userId,
+        username,
+        password: hashedPassword
+      };
+      userData.push(newUser);
+  
+      const newUserTodos = { id: userId, todos: [] };
+      todosData.push(newUserTodos);
+  
+      return res.status(200).json(newUser);
+    });
   });
-});
-
+  
+  
 app.post('/api/user/login', checkForLogin, (req, res) => {
     const { username, password } = req.body;
   
